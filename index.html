@@ -65,6 +65,13 @@
     function showSavedAction(){const saved=$('#savedActions');if(!restoreProgress())return;saved.innerHTML=`<button class="secondary" id="resumeSaved">${state.finalPicks.length===9?'前回の結果を見る':'前回の続きから再開'}</button>`;$('#resumeSaved').onclick=()=>{if(state.finalPicks.length===9){$('#intro').hidden=true;makeResults(state.finalPicks);return}$('#intro').hidden=true;$('#play').hidden=false;if(state.mainPlayoff)renderMainPlayoff();else if(state.stage===1&&state.round===0)showMainTransition();else if(state.stage===2){state.finalReady?showFinalReady(state.finalPicks):renderFinal()}else render();$('#play').scrollIntoView({behavior:'smooth'})}}
     const rankingConfig=window.HOST_RANKING_CONFIG||{};
     const rankingReady=Boolean(rankingConfig.url&&rankingConfig.anonKey);
+    async function registerVisitor(){
+      if(!rankingReady||!crypto.randomUUID)return;
+      const storageKey='host-face-visitor-id-v1';
+      let visitorId=localStorage.getItem(storageKey);
+      if(!visitorId){visitorId=crypto.randomUUID();localStorage.setItem(storageKey,visitorId)}
+      await fetch(`${rankingConfig.url}/rest/v1/site_visitors`,{method:'POST',headers:{apikey:rankingConfig.anonKey,Authorization:`Bearer ${rankingConfig.anonKey}`,'Content-Type':'application/json',Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify({visitor_id:visitorId})});
+    }
     async function saveSharedResult(picks){
       if(!rankingReady||!picks.length)return false;
       const storageKey='host-face-ranking-result-v1';
@@ -103,7 +110,7 @@
     function areaLabel(area){const last=(area||'全国').replace('ホストクラブ','').split('／').pop()||'全国';return last.replace('歌舞伎町','歌舞伎')}
     function renderHeroVisual(){const wanted=['皇あとむ','帝 麗苑','白恋風磨','皇 礼央','成宮星翔','七瀬るい'];const normalized=s=>String(s).replace(/\s/g,'');const byName=new Map(state.people.map(p=>[normalized(p.name),p]));const featured=wanted.map(n=>byName.get(normalized(n))).filter(Boolean);const rest=state.people.filter(p=>!featured.some(x=>x.id===p.id)).sort((a,b)=>(b.popularityVal||0)-(a.popularityVal||0));const picks=featured.concat(rest).slice(0,9);$('#heroVisual').innerHTML=picks.map(p=>`<img src="${p.img}" alt="${p.name}" loading="eager">`).join('')}
     async function load(){try{const [csvText,positions]=await Promise.all([fetch('./host2-candidates-current.csv').then(r=>r.text()),fetch('./photo-positions-final.json').then(r=>r.json())]);const rows=parseCsv(csvText);state.positions=positions;state.people=rows.map((p,i)=>({id:p.host2_profile_url||String(i),name:p.name,shopName:p.shop.replace(/ スタッフ.*$/,''),districtName:areaLabel(p.host2_area),img:p.photo_source_url.startsWith('http')?p.photo_source_url:'https://www.host2.jp'+p.photo_source_url,popularityVal:Number(p.selection_score)||0,rank:Number(p.host2_monthly_rank)||999})).filter(p=>p.name)}catch(e){}state.initial=state.people.slice();$('#count').textContent=state.people.length;renderHeroVisual();showSavedAction();}
-    $('#start').onclick=()=>{$('#intro').hidden=true;$('#play').hidden=false;render();$('#play').scrollIntoView({behavior:'smooth'})};$('#next').onclick=()=>{if(state.finalReady){revealWinner()}else if(state.round===rounds()-1){advance()}else{state.round++;saveProgress();render();window.scrollTo({top:0,behavior:'smooth'})}};$('#skip').onclick=()=>$('#next').click();$('#back').onclick=()=>{if(state.mainPlayoff&&state.mainPairIndex){state.mainPairIndex--;state.mainWinners.pop();saveProgress();renderMainPlayoff()}else if(stages[state.stage].final&&!state.rankingPhase&&state.duelIndex){state.duelIndex--;state.duelWinners.pop();saveProgress();renderFinal()}else if(state.round){state.round--;saveProgress();render();window.scrollTo({top:0,behavior:'smooth'})}};load();
+    $('#start').onclick=()=>{$('#intro').hidden=true;$('#play').hidden=false;render();$('#play').scrollIntoView({behavior:'smooth'})};$('#next').onclick=()=>{if(state.finalReady){revealWinner()}else if(state.round===rounds()-1){advance()}else{state.round++;saveProgress();render();window.scrollTo({top:0,behavior:'smooth'})}};$('#skip').onclick=()=>$('#next').click();$('#back').onclick=()=>{if(state.mainPlayoff&&state.mainPairIndex){state.mainPairIndex--;state.mainWinners.pop();saveProgress();renderMainPlayoff()}else if(stages[state.stage].final&&!state.rankingPhase&&state.duelIndex){state.duelIndex--;state.duelWinners.pop();saveProgress();renderFinal()}else if(state.round){state.round--;saveProgress();render();window.scrollTo({top:0,behavior:'smooth'})}};registerVisitor().catch(()=>{});load();
   })();
   </script>
 </body>
